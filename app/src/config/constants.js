@@ -1,0 +1,83 @@
+// ==================== GAME CONSTANTS ====================
+
+export const PLAYER = {
+    WALK_SPEED: 50.0,
+    RUN_SPEED: 100.0,
+    JUMP_VELOCITY: 35.0,
+    RADIUS: 1.0,
+    HEIGHT: 2.0,
+    AIR_CONTROL_FACTOR: 0.7,
+    GROUND_FRICTION: 10.0,
+    AIR_FRICTION: 2.0
+};
+
+export const WORLD = {
+    BOUNDARY: 240,
+    GRAVITY: 9.8 * 5.0
+};
+
+export const COLLECTIBLES = {
+    GEM_POINTS: 100,
+    BUILDING_GEM_POINTS: 200,
+    COIN_POINTS: 10,
+    TREASURE_POINTS: 500,
+    COLLECTION_RADIUS: 2.0,
+    COLLECTION_VERTICAL_TOLERANCE: 2.5
+};
+
+export const WATER = {
+    SHALLOW_DEPTH: 1.0,
+    MEDIUM_DEPTH: 3.0,
+    SHALLOW_RESISTANCE: 0.9,
+    SHALLOW_SINK_RATE: 0.2,
+    MEDIUM_RESISTANCE: 0.6,
+    MEDIUM_SINK_RATE: 0.5,
+    DEEP_RUN_RESISTANCE: 0.4,
+    DEEP_WALK_RESISTANCE: 0.2,
+    DEEP_RUN_SINK: 0.8,
+    DEEP_WALK_SINK: 1.2
+};
+
+export const RENDERING = {
+    FOV: 75,
+    NEAR_PLANE: 0.1,
+    FAR_PLANE: 1000,
+    SHADOW_MAP_SIZE: 2048,
+    SHADOW_BIAS: -0.0001
+};
+
+export const LIGHTING = {
+    AMBIENT_INTENSITY: 0.5,
+    SUN_INTENSITY: 1.5,
+    MOON_INTENSITY: 0.3,
+    HEMISPHERE_INTENSITY: 0.6,
+    SUN_COLOR: 0xffffff,
+    MOON_COLOR: 0x4040ff,
+    AMBIENT_COLOR: 0x404040,
+    SKY_COLOR: 0x87CEEB,
+    GROUND_COLOR: 0x4a7c3f
+};
+
+export const FOG = {
+    DAY_COLOR: 0x87CEEB,
+    DAY_NEAR: 50,
+    DAY_FAR: 400,
+    NIGHT_COLOR: 0x0a0a2e,
+    NIGHT_NEAR: 30,
+    NIGHT_FAR: 200
+};
+
+export const BUILDINGS = {
+    FLOOR_HEIGHT: 4,
+    DEFAULT_WIDTH: 15,
+    DEFAULT_DEPTH: 12,
+    DOOR_WIDTH: 2.5,
+    DOOR_HEIGHT: 3.2,
+    DOOR_INTERACTION_DISTANCE: 3
+};
+
+export const SPAWN = {
+    X: 0,
+    Y: 2,
+    Z: 0
+};

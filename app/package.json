@@ -1,0 +1,25 @@
+{
+  "name": "threejs-park-adventure-game",
+  "version": "2.1.1",
+  "description": "Professional WebGL + Three.js Park Adventure Game with Collision Detection and Collectibles",
+  "main": "index.html",
+  "scripts": {
+    "dev": "python -m http.server 6968",
+    "docker:up": "docker-compose -f ../docker-compose.dev.yml up -d",
+    "docker:down": "docker-compose -f ../docker-compose.dev.yml down"
+  },
+  "keywords": [
+    "threejs",
+    "webgl",
+    "3d",
+    "park",
+    "game",
+    "adventure",
+    "collision-detection",
+    "first-person",
+    "exploration"
+  ],
+  "dependencies": {
+    "three": "^0.160.0"
+  }
+}

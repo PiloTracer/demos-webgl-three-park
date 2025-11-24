@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  park-demo:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: threejs-park-demo
+    ports:
+      - "6968:80"
+    volumes:
+      - ./app:/usr/share/nginx/html:ro
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
