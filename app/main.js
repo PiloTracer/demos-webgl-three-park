@@ -799,6 +799,7 @@ function createPond(x, z, size, depth) {
         group: pondGroup,
         x: x,
         z: z,
+        position: new THREE.Vector3(x, 0, z),
         size: size,
         depth: depth,
         fish: [] // Will be populated for deep ponds
@@ -1257,7 +1258,7 @@ function createDragonflies() {
 
     ponds.forEach(pond => {
         for (let i = 0; i < dragonflyCount / 3; i++) {
-            const dragonfly = createDragonfly(pond.position);
+            const dragonfly = createDragonfly(pond.group.position);
             dragonflies.push(dragonfly);
             scene.add(dragonfly);
         }
@@ -1850,15 +1851,17 @@ function createHiddenTreasureInBuilding(parent, buildingX, buildingZ, floorY, wi
     gem.castShadow = true;
     parent.add(gem);
 
-    // Add to collectibles
-    const worldPos = new THREE.Vector3(buildingX + roomX, floorY + 1, buildingZ + roomZ);
-    collectibles.push({
-        mesh: gem,
+    // Setup userData for game logic
+    gem.userData = {
         type: 'building_treasure',
-        points: 200,
+        value: 200,
         collected: false,
-        position: worldPos
-    });
+        rotationSpeed: 1.0,
+        baseHeight: floorY + 1
+    };
+
+    // Add to collectibles
+    collectibles.push(gem);
 
     gameState.totalGems++;
 }
@@ -1948,7 +1951,7 @@ function createMushroom(x, z) {
 function createReeds() {
     ponds.forEach(pond => {
         const pondPos = pond.position;
-        const pondSize = 15; // Approximate
+        const pondSize = pond.size;
 
         for (let i = 0; i < 20; i++) {
             const angle = (i / 20) * Math.PI * 2;
@@ -2143,15 +2146,12 @@ function updateGameUI() {
 
 function checkCollectibles() {
     const playerPos = new THREE.Vector3(camera.position.x, camera.position.y, camera.position.z);
+    const collectiblePos = new THREE.Vector3();
 
     collectibles.forEach(collectible => {
         if (collectible.userData.collected) return;
 
-        const collectiblePos = new THREE.Vector3(
-            collectible.position.x,
-            collectible.position.y,
-            collectible.position.z
-        );
+        collectible.getWorldPosition(collectiblePos);
 
         // Calculate horizontal and vertical distances
         const horizontalDist = Math.sqrt(
@@ -2244,7 +2244,7 @@ function checkPondVisits() {
     const playerPos = new THREE.Vector3(camera.position.x, 0, camera.position.z);
 
     ponds.forEach((pond, index) => {
-        const pondPos = new THREE.Vector3(pond.position.x, 0, pond.position.z);
+        const pondPos = pond.group.position;
         const distance = playerPos.distanceTo(pondPos);
 
         if (distance < 20 && !gameState.pondsVisited.has(index)) {
@@ -2764,7 +2764,7 @@ function animateWater() {
     const time = clock.getElapsedTime();
 
     ponds.forEach(pond => {
-        const water = pond.userData.water;
+        const water = pond.group.userData.water;
         if (water) {
             water.userData.time += 0.01;
             water.position.y = 0.3 + Math.sin(water.userData.time) * 0.05;
@@ -2838,7 +2838,7 @@ function animateCollectibles() {
         if (collectible.userData.collected) return;
 
         // Rotate
-        collectible.rotation.y += deltaTime * collectible.userData.rotationSpeed;
+        collectible.rotation.y += deltaTime * (collectible.userData.rotationSpeed || 1.0);
 
         // Bob up and down (use baseHeight for correct elevation)
         const bobOffset = Math.sin(time * 2 + collectible.position.x) * 0.2;
