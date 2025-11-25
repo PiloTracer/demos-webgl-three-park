@@ -1,25 +1,30 @@
 {
-  "name": "threejs-park-adventure-game",
-  "version": "2.1.1",
-  "description": "Professional WebGL + Three.js Park Adventure Game with Collision Detection and Collectibles",
-  "main": "index.html",
+  "name": "demos-webgl-threejs-park",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
   "scripts": {
-    "dev": "python -m http.server 6968",
-    "docker:up": "docker-compose -f ../docker-compose.dev.yml up -d",
-    "docker:down": "docker-compose -f ../docker-compose.dev.yml down"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [
-    "threejs",
-    "webgl",
-    "3d",
-    "park",
-    "game",
-    "adventure",
-    "collision-detection",
-    "first-person",
-    "exploration"
-  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PiloTracer/demos-webgl-three-park.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/PiloTracer/demos-webgl-three-park/issues"
+  },
+  "homepage": "https://github.com/PiloTracer/demos-webgl-three-park#readme",
   "dependencies": {
-    "three": "^0.160.0"
+    "cannon-es": "^0.20.0",
+    "dat.gui": "^0.7.9",
+    "three": "^0.181.2",
+    "vite": "^7.2.4"
   }
 }
