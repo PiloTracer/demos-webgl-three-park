@@ -38,6 +38,9 @@ export default class InputManager {
       case 'ShiftRight':
         this.keys.run = true;
         break;
+      case 'KeyE':
+        this.keys.interact = true;
+        break;
     }
   }
 
@@ -65,6 +68,9 @@ export default class InputManager {
       case 'ShiftLeft':
       case 'ShiftRight':
         this.keys.run = false;
+        break;
+      case 'KeyE':
+        this.keys.interact = false;
         break;
     }
   }

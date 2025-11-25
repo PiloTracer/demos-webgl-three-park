@@ -105,17 +105,35 @@ export default class Game {
   }
 
   update() {
-    const delta = this.clock.getDelta();
+    let delta = this.clock.getDelta();
+    
+    // Cap delta to prevent huge jumps/spirals (e.g. tab switching)
+    delta = Math.min(delta, 0.05);
+    
     this.deltaTime = delta;
 
-    // Physics step - Increase maxSubSteps to prevent tunneling
-    // Fixed step 1/60, max 10 substeps to catch up
+    // Physics step
     this.physicsWorld.step(1 / 60, delta, 10);
 
     // Update entities
     if (this.world) this.world.update(delta);
     if (this.player) this.player.update(delta);
     if (this.collectibles) this.collectibles.update(delta);
+
+    // Update Directional Light position to follow player (for consistent shadows)
+    if (this.player && this.player.mesh) {
+        const light = this.scene.children.find(c => c.isDirectionalLight);
+        if (light) {
+            // Keep offset
+            light.position.set(
+                this.player.mesh.position.x + 10,
+                this.player.mesh.position.y + 20,
+                this.player.mesh.position.z + 10
+            );
+            light.target.position.copy(this.player.mesh.position);
+            light.target.updateMatrixWorld();
+        }
+    }
 
     // Render
     this.renderer.render(this.scene, this.camera);

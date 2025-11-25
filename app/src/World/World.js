@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
+import HouseManager from './HouseManager.js';
 
 export default class World {
   constructor(game) {
@@ -17,6 +18,10 @@ export default class World {
     this.createVegetation();
     this.createFish();
     this.createBirds();
+    
+    // Houses
+    this.houseManager = new HouseManager(this.game, this);
+    this.objectsToUpdate.push(this.houseManager);
   }
 
   createTerrain() {
@@ -332,6 +337,8 @@ export default class World {
   }
 
   update(deltaTime) {
+    this.houseManager.update(deltaTime);
+
     const time = this.game.clock.getElapsedTime();
     
     // Fish AI

@@ -45,26 +45,31 @@ export default class CollectiblesManager {
     }
   }
 
-  createItem(geometry, material, type, value) {
-    const x = (Math.random() - 0.5) * 80;
-    const z = (Math.random() - 0.5) * 80;
+  createItem(geometry, material, type, value, overrideX, overrideY, overrideZ) {
+    let x, y, z;
     
-    // Raycast to find ground height
-    let y = 5; // Start high
-    const start = new CANNON.Vec3(x, 20, z);
-    const end = new CANNON.Vec3(x, -10, z);
-    const raycastResult = new CANNON.RaycastResult();
-    this.physicsWorld.raycastClosest(start, end, {}, raycastResult);
-    
-    if (raycastResult.hasHit) {
-        y = raycastResult.hitPointWorld.y + 0.5; // Hover slightly above ground
+    if (overrideX !== undefined) {
+        x = overrideX;
+        y = overrideY;
+        z = overrideZ;
     } else {
-        y = 1; // Default fallback
+        x = (Math.random() - 0.5) * 80;
+        z = (Math.random() - 0.5) * 80;
+        
+        // Raycast to find ground height
+        y = 5; 
+        const start = new CANNON.Vec3(x, 20, z);
+        const end = new CANNON.Vec3(x, -10, z);
+        const raycastResult = new CANNON.RaycastResult();
+        this.physicsWorld.raycastClosest(start, end, {}, raycastResult);
+        
+        if (raycastResult.hasHit) {
+            y = raycastResult.hitPointWorld.y + 0.5; 
+        } else {
+            y = 1; 
+        }
     }
-    
-    // If it's underwater, maybe move it up or keep it there?
-    // Let's ensure it's at least above a certain minimum or player can swim to it.
-    
+
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(x, y, z);
     mesh.castShadow = true;

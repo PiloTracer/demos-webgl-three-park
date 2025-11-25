@@ -114,11 +114,14 @@ export default class Player {
     }
 
     // Sync visual with physics
-    // Feet (Mesh Y -0.9) must match Sphere Bottom (Body Y - 0.8)
-    // Mesh Y - 0.9 = Body Y - 0.8
-    // Mesh Y = Body Y + 0.1
+    // Interpolate visual mesh position for smoothness
+    // Instead of hard copy, we lerp slightly to hide physics steps
+    // Or just hard copy if we trust 60fps.
+    // Let's hard copy but ensure the offset is correct.
     this.mesh.position.copy(this.body.position);
     this.mesh.position.y += 0.1; 
+    
+    // Tank controls are already smooth (rotation += speed * dt)
     
     this.handleMovement(deltaTime);
     this.updateCamera();
@@ -298,8 +301,13 @@ export default class Player {
     
     const targetPos = this.mesh.position.clone().add(relativeOffset);
     
-    // Smooth follow
-    this.camera.position.lerp(targetPos, 0.1);
+    // Smooth follow using frame-rate independent damping
+    // Factor = 1 - Math.exp(-decay * dt)
+    // Decay 5.0 is smooth, 10.0 is snappy
+    const decay = 5.0;
+    const factor = 1.0 - Math.exp(-decay * this.game.deltaTime);
+    
+    this.camera.position.lerp(targetPos, factor);
     
     // Look at player head
     const lookTarget = this.mesh.position.clone().add(new THREE.Vector3(0, 2, 0));
