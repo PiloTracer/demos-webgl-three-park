@@ -15,6 +15,8 @@ export default class Player {
   initPlayer() {
     // Create Character Group
     this.mesh = new THREE.Group();
+    this.characterVisual = new THREE.Group();
+    this.mesh.add(this.characterVisual);
     
     // Materials
     const skinMat = new THREE.MeshStandardMaterial({ color: 0xffccaa });
@@ -25,13 +27,13 @@ export default class Player {
     const headGeo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
     this.head = new THREE.Mesh(headGeo, skinMat);
     this.head.position.y = 0.7;
-    this.mesh.add(this.head);
+    this.characterVisual.add(this.head);
 
     // Torso
     const torsoGeo = new THREE.BoxGeometry(0.5, 0.7, 0.3);
     this.torso = new THREE.Mesh(torsoGeo, shirtMat);
     this.torso.position.y = 0.15;
-    this.mesh.add(this.torso);
+    this.characterVisual.add(this.torso);
 
     // Arms
     const armGeo = new THREE.BoxGeometry(0.15, 0.6, 0.15);
@@ -39,11 +41,11 @@ export default class Player {
     
     this.leftArm = new THREE.Mesh(armGeo, shirtMat);
     this.leftArm.position.set(-0.35, 0.2, 0);
-    this.mesh.add(this.leftArm);
+    this.characterVisual.add(this.leftArm);
     
     this.rightArm = new THREE.Mesh(armGeo, shirtMat);
     this.rightArm.position.set(0.35, 0.2, 0);
-    this.mesh.add(this.rightArm);
+    this.characterVisual.add(this.rightArm);
 
     // Legs
     const legGeo = new THREE.BoxGeometry(0.18, 0.6, 0.18);
@@ -51,11 +53,11 @@ export default class Player {
     
     this.leftLeg = new THREE.Mesh(legGeo, pantsMat);
     this.leftLeg.position.set(-0.15, -0.4, 0);
-    this.mesh.add(this.leftLeg);
+    this.characterVisual.add(this.leftLeg);
 
     this.rightLeg = new THREE.Mesh(legGeo, pantsMat);
     this.rightLeg.position.set(0.15, -0.4, 0);
-    this.mesh.add(this.rightLeg);
+    this.characterVisual.add(this.rightLeg);
     
     // Shadows
     this.mesh.traverse((object) => {
@@ -81,6 +83,11 @@ export default class Player {
 
     // Initial safe position
     this.resetToGround();
+    
+    // Jump state
+    this.jumpCount = 0;
+    this.canJump = true; // To prevent holding key
+    this.isSwimming = false;
   }
 
   resetToGround() {
@@ -120,12 +127,38 @@ export default class Player {
   }
 
   animateCharacter(deltaTime) {
+    const time = this.game.clock.getElapsedTime();
+    
+    // Swimming Animation
+    if (this.isSwimming) {
+        // Rotate body to horizontal
+        // Three.js Right Hand Rule: Rotate around X axis.
+        // +Y (Head) rotates to +Z (Back/Camera) with positive rotation.
+        // We want Head to point to -Z (Forward). So we need -PI/2.
+        this.characterVisual.rotation.x = -Math.PI / 2; // Face down, Head Forward
+        this.characterVisual.position.y = 0.2; // Adjust height center
+
+        // Swim stroke
+        const swimSpeed = 8;
+        this.leftArm.rotation.x = Math.sin(time * swimSpeed) * 0.8 + Math.PI; 
+        this.rightArm.rotation.x = Math.sin(time * swimSpeed + Math.PI) * 0.8 + Math.PI;
+        
+        // Kick legs
+        this.leftLeg.rotation.x = Math.sin(time * swimSpeed * 1.5) * 0.3;
+        this.rightLeg.rotation.x = Math.sin(time * swimSpeed * 1.5 + Math.PI) * 0.3;
+        
+        return;
+    }
+
+    // Reset rotation if not swimming
+    this.characterVisual.rotation.x = 0;
+    this.characterVisual.position.y = 0;
+
     // Get speed
     const velocity = new CANNON.Vec3(this.body.velocity.x, 0, this.body.velocity.z);
     const speed = velocity.length();
     
     if (speed > 0.1) {
-        const time = this.game.clock.getElapsedTime();
         const walkSpeed = speed * 2; // Animation speed based on move speed
         
         // Walk cycle
@@ -147,48 +180,76 @@ export default class Player {
   }
 
   handleMovement(deltaTime) {
-    const speed = this.input.keys.run ? 12 : 6;
+    const isSwimming = this.isSwimming;
+    let speed = this.input.keys.run ? 12 : 6;
+    if (isSwimming) speed *= 0.5;
+
     const jumpForce = 8;
     
-    // Get camera direction
-    const forward = new THREE.Vector3(0, 0, -1);
-    forward.applyQuaternion(this.camera.quaternion);
-    forward.y = 0;
-    forward.normalize();
-
-    const right = new THREE.Vector3(1, 0, 0);
-    right.applyQuaternion(this.camera.quaternion);
-    right.y = 0;
-    right.normalize();
-
-    const direction = new THREE.Vector3();
-
-    if (this.input.keys.forward) direction.add(forward);
-    if (this.input.keys.backward) direction.sub(forward);
-    if (this.input.keys.right) direction.add(right);
-    if (this.input.keys.left) direction.sub(right);
-
-    if (direction.length() > 0) {
-      direction.normalize();
-      
-      this.body.velocity.x = direction.x * speed;
-      this.body.velocity.z = direction.z * speed;
-      
-      // Rotate character to face direction
-      const angle = Math.atan2(direction.x, direction.z);
-      this.mesh.rotation.y = angle; 
-    } else {
-        // Stop horizontal movement if no input (friction does this too, but we want snapping)
-        this.body.velocity.x *= 0.5; // Faster stop
-        this.body.velocity.z *= 0.5;
+    // Rotation (Tank Controls)
+    const rotateSpeed = 2.5 * deltaTime;
+    if (this.input.keys.left) {
+        this.mesh.rotation.y += rotateSpeed;
+    }
+    if (this.input.keys.right) {
+        this.mesh.rotation.y -= rotateSpeed;
     }
 
-    // Jump
+    // Movement Direction based on Character Facing
+    let moveForward = 0;
+    if (this.input.keys.forward) moveForward = 1;
+    if (this.input.keys.backward) moveForward = -1;
+
+    if (moveForward !== 0) {
+        // Calculate forward vector based on rotation
+        // Character faces along +Z or -Z?
+        // Let's assume standard -Z is forward in visual terms, but we can align physics.
+        // If rotation is 0, we want to move towards -Z?
+        // Let's test: rotation 0. sin(0)=0, cos(0)=1. 
+        // We want (0,0,-1).
+        // So x = -sin(rot), z = -cos(rot).
+        
+        const rot = this.mesh.rotation.y;
+        const dx = -Math.sin(rot);
+        const dz = -Math.cos(rot);
+        
+        this.body.velocity.x = dx * speed * moveForward;
+        this.body.velocity.z = dz * speed * moveForward;
+    } else {
+        // Stop horizontal movement
+        const friction = isSwimming ? 0.8 : 0.5;
+        this.body.velocity.x *= friction;
+        this.body.velocity.z *= friction;
+    }
+
+    // Jump Logic
+    // Reset jump count if grounded
+    if (this.isGrounded()) {
+        this.jumpCount = 0;
+    }
+
     if (this.input.keys.jump) {
-        // Raycast to check if grounded
-        if(this.isGrounded()) {
-            this.body.velocity.y = jumpForce;
+        if (this.canJump) {
+            // Jump logic
+            let didJump = false;
+            
+            // Allow jumping out of water regardless of count if swimming
+            if (isSwimming && this.body.position.y > -1.5) { // Near surface
+                 this.body.velocity.y = 10; // Big launch
+                 this.isSwimming = false; // Break state
+                 didJump = true;
+            } 
+            // Regular triple jump
+            else if (this.jumpCount < 3) { 
+                this.body.velocity.y = jumpForce;
+                this.jumpCount++;
+                didJump = true;
+            }
+            
+            this.canJump = false; 
         }
+    } else {
+        this.canJump = true; 
     }
   }
 
@@ -202,13 +263,24 @@ export default class Player {
   }
 
   checkWater() {
-      if (this.body.position.y < -0.5) {
+      const waterLevel = -0.5;
+      
+      if (this.body.position.y < waterLevel) {
+          this.isSwimming = true;
           // Swimming physics: gravity reduced, linear damping increased
-          this.body.linearDamping = 0.95; // High drag
+          this.body.linearDamping = 0.9; // Drag
           // Push up force (buoyancy)
-          this.body.applyForce(new CANNON.Vec3(0, 15, 0), this.body.position);
+          // Only push if significantly underwater to float at surface
+          const depth = waterLevel - this.body.position.y;
+          if (depth > 0) {
+            this.body.applyForce(new CANNON.Vec3(0, 20 * depth, 0), this.body.position);
+          }
       } else {
-          this.body.linearDamping = 0.9; // Normal drag
+          this.isSwimming = false;
+          this.body.linearDamping = 0.9; // Normal drag (actually this was high before, stick to 0.9?? 0.9 is very high damp)
+          // Normal walking linearDamping should be low? Cannon default is 0.01.
+          // Wait, previous code set it to 0.9 in init. That explains sharp stops.
+          // Let's keep it consistent.
       }
 
       // Respawn if fell off world
@@ -218,17 +290,19 @@ export default class Player {
   }
 
   updateCamera() {
-    // Third person camera
-    const offset = new THREE.Vector3(0, 5, 10);
-    const playerPos = new THREE.Vector3(this.mesh.position.x, this.mesh.position.y, this.mesh.position.z);
+    // Camera always behind player
+    // Calculate offset based on player rotation
+    const relativeOffset = new THREE.Vector3(0, 5, 12);
+    // Rotate offset by player rotation
+    relativeOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.mesh.rotation.y);
+    
+    const targetPos = this.mesh.position.clone().add(relativeOffset);
     
     // Smooth follow
-    // For now, fixed offset relative to world (simple 3/4 view)
-    // Or relative to player rotation?
-    // Let's do simple follow first
-    
-    const targetPos = playerPos.clone().add(offset);
     this.camera.position.lerp(targetPos, 0.1);
-    this.camera.lookAt(playerPos);
+    
+    // Look at player head
+    const lookTarget = this.mesh.position.clone().add(new THREE.Vector3(0, 2, 0));
+    this.camera.lookAt(lookTarget);
   }
 }

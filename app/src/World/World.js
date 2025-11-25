@@ -8,16 +8,20 @@ export default class World {
     this.physicsWorld = game.physicsWorld;
 
     this.objectsToUpdate = [];
+    this.fish = [];
+    this.birds = [];
 
     this.createTerrain();
     this.createWater();
     this.createRocks();
     this.createVegetation();
+    this.createFish();
+    this.createBirds();
   }
 
   createTerrain() {
     // Parameters
-    this.terrainSize = 100;
+    this.terrainSize = 200; // Extended
     this.terrainResolution = 128;
     this.terrainMatrix = [];
     
@@ -35,18 +39,23 @@ export default class World {
     for (let iz = 0; iz < this.terrainResolution; iz++) {
       for (let ix = 0; ix < this.terrainResolution; ix++) {
         // Calculate height
-        const xVal = ix / this.terrainResolution * 10;
-        const zVal = iz / this.terrainResolution * 10;
+        const xVal = (ix / this.terrainResolution) * 15;
+        const zVal = (iz / this.terrainResolution) * 15;
         
-        // Use noise-like function
-        let height = Math.sin(xVal) * Math.cos(zVal) * 2 + Math.sin(xVal * 3 + zVal) * 0.5;
+        // Base terrain (Hills)
+        let height = Math.sin(xVal) * Math.cos(zVal) * 3 + Math.sin(xVal * 3 + zVal) * 1;
         
+        // Create deeper ponds using a larger low-frequency wave
+        // We subtract to make pits
+        const basin = Math.sin(xVal * 0.5) * Math.cos(zVal * 0.5) * 6;
+        height -= basin;
+
         // Flatten center
         const centerX = this.terrainResolution / 2;
         const centerZ = this.terrainResolution / 2;
         const dist = Math.sqrt((ix - centerX)**2 + (iz - centerZ)**2);
         if (dist < 10) {
-            height *= (dist / 10);
+            height = 0; // Flat start
         }
 
         // Store in matrix: Cannon expects matrix[x][z]
@@ -111,7 +120,7 @@ export default class World {
   }
 
   createWater() {
-    const geometry = new THREE.PlaneGeometry(100, 100);
+    const geometry = new THREE.PlaneGeometry(this.terrainSize, this.terrainSize);
     geometry.rotateX(-Math.PI / 2);
     const material = new THREE.MeshStandardMaterial({
         color: 0x0077be,
@@ -125,16 +134,20 @@ export default class World {
 
   createRocks() {
     // Add some random rocks
-    for(let i=0; i<20; i++) {
+    for(let i=0; i<40; i++) { // More rocks for larger map
         const radius = (Math.random() * 0.5) + 0.5;
         const geometry = new THREE.DodecahedronGeometry(radius);
         const material = new THREE.MeshStandardMaterial({ color: 0x808080 });
         const mesh = new THREE.Mesh(geometry, material);
         
-        const x = (Math.random() - 0.5) * 80;
-        const z = (Math.random() - 0.5) * 80;
+        const x = (Math.random() - 0.5) * (this.terrainSize - 10);
+        const z = (Math.random() - 0.5) * (this.terrainSize - 10);
         
         const groundHeight = this.getTerrainHeightAt(x, z);
+        
+        // Don't spawn underwater if too deep
+        if (groundHeight < -1) continue;
+
         const y = groundHeight + radius * 0.5; // Embed slightly
 
         mesh.position.set(x, y, z);
@@ -152,45 +165,209 @@ export default class World {
   }
 
   createVegetation() {
-    // Simple tree placeholders (Cylinder + Cone)
-    for(let i=0; i<30; i++) {
-        const x = (Math.random() - 0.5) * 90;
-        const z = (Math.random() - 0.5) * 90;
+    // Simple tree placeholders
+    for(let i=0; i<80; i++) { // More trees
+        const x = (Math.random() - 0.5) * (this.terrainSize - 10);
+        const z = (Math.random() - 0.5) * (this.terrainSize - 10);
         
         // Don't place near center
         if(Math.abs(x) < 5 && Math.abs(z) < 5) continue;
 
         const groundHeight = this.getTerrainHeightAt(x, z);
-        const y = groundHeight + 0.5; // Base of trunk at ground + half height
-
-        const trunkGeo = new THREE.CylinderGeometry(0.2, 0.2, 1);
-        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
-        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
         
-        const leavesGeo = new THREE.ConeGeometry(1, 2, 8);
-        const leavesMat = new THREE.MeshStandardMaterial({ color: 0x228B22 });
-        const leaves = new THREE.Mesh(leavesGeo, leavesMat);
-        leaves.position.y = 1.5;
+        // Remove trees from inside ponds
+        if (groundHeight < -0.5) continue;
 
+        const y = groundHeight; 
+        const type = Math.floor(Math.random() * 3);
         const treeGroup = new THREE.Group();
-        treeGroup.add(trunk);
-        treeGroup.add(leaves);
+
+        if (type === 0) {
+            // Pine
+            const trunkGeo = new THREE.CylinderGeometry(0.2, 0.4, 1.5);
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x3d2817 });
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.position.y = 0.75;
+            
+            const leavesGeo = new THREE.ConeGeometry(1.2, 3, 8);
+            const leavesMat = new THREE.MeshStandardMaterial({ color: 0x1a472a });
+            const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+            leaves.position.y = 2.5;
+
+            treeGroup.add(trunk);
+            treeGroup.add(leaves);
+            
+            // Physics
+            const shape = new CANNON.Cylinder(0.3, 0.3, 2, 8);
+            const body = new CANNON.Body({ mass: 0 });
+            body.addShape(shape, new CANNON.Vec3(0, 1, 0));
+            body.position.set(x, y, z);
+            this.physicsWorld.addBody(body);
+
+        } else if (type === 1) {
+            // Round Oak
+            const trunkGeo = new THREE.CylinderGeometry(0.3, 0.4, 2);
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c4033 });
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.position.y = 1;
+            
+            const leavesGeo = new THREE.IcosahedronGeometry(1.5, 0);
+            const leavesMat = new THREE.MeshStandardMaterial({ color: 0x4a6741 });
+            const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+            leaves.position.y = 2.5;
+
+            treeGroup.add(trunk);
+            treeGroup.add(leaves);
+
+            // Physics
+            const shape = new CANNON.Cylinder(0.4, 0.4, 2, 8);
+            const body = new CANNON.Body({ mass: 0 });
+            body.addShape(shape, new CANNON.Vec3(0, 1, 0));
+            body.position.set(x, y, z);
+            this.physicsWorld.addBody(body);
+
+        } else {
+            // Bush
+            const leavesGeo = new THREE.DodecahedronGeometry(1);
+            const leavesMat = new THREE.MeshStandardMaterial({ color: 0x6e8c3c });
+            const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+            leaves.position.y = 0.8;
+            leaves.scale.set(1.5, 1, 1.5);
+            
+            treeGroup.add(leaves);
+
+            // Physics (smaller)
+            const shape = new CANNON.Sphere(0.8);
+            const body = new CANNON.Body({ mass: 0 });
+            body.addShape(shape, new CANNON.Vec3(0, 0.8, 0));
+            body.position.set(x, y, z);
+            this.physicsWorld.addBody(body);
+        }
         
         treeGroup.position.set(x, y, z); 
         treeGroup.castShadow = true;
-        
         this.scene.add(treeGroup);
-        
-        // Physics (Cylinder)
-        const shape = new CANNON.Cylinder(0.2, 0.2, 1, 8);
-        const body = new CANNON.Body({ mass: 0 });
-        body.addShape(shape);
-        body.position.set(x, y, z);
-        this.physicsWorld.addBody(body);
     }
+  }
+  
+  createFish() {
+      const fishColor = 0xff8800;
+      
+      for(let i=0; i<40; i++) {
+          const group = new THREE.Group();
+          
+          // Body
+          const bodyGeo = new THREE.CapsuleGeometry(0.08, 0.3, 4, 8);
+          bodyGeo.rotateZ(Math.PI / 2);
+          const bodyMat = new THREE.MeshStandardMaterial({ color: fishColor });
+          const body = new THREE.Mesh(bodyGeo, bodyMat);
+          group.add(body);
+          
+          // Tail
+          const tailGeo = new THREE.ConeGeometry(0.1, 0.2, 4);
+          tailGeo.rotateZ(-Math.PI / 2);
+          const tail = new THREE.Mesh(tailGeo, bodyMat);
+          tail.position.x = -0.25;
+          group.add(tail);
+
+          // Find a water spot
+          let x, z, h;
+          let attempts = 0;
+          do {
+             x = (Math.random() - 0.5) * (this.terrainSize - 10);
+             z = (Math.random() - 0.5) * (this.terrainSize - 10);
+             h = this.getTerrainHeightAt(x, z);
+             attempts++;
+          } while ((h > -1.5) && attempts < 20); 
+          
+          if (h <= -1.5) {
+              group.position.set(x, -1 - Math.random(), z); // Varied depth
+              this.scene.add(group);
+              
+              this.fish.push({
+                  mesh: group,
+                  speed: 1 + Math.random() * 2,
+                  direction: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize(),
+                  changeTime: Math.random() * 5
+              });
+          }
+      }
+  }
+
+  createBirds() {
+      const birdColor = 0xffffff;
+      
+      for(let i=0; i<15; i++) {
+          const group = new THREE.Group();
+          
+          // Simple Bird (V shape)
+          const bodyGeo = new THREE.ConeGeometry(0.1, 0.4, 4);
+          bodyGeo.rotateX(Math.PI / 2);
+          const mat = new THREE.MeshBasicMaterial({ color: birdColor });
+          const body = new THREE.Mesh(bodyGeo, mat);
+          group.add(body);
+          
+          const wingsGeo = new THREE.BoxGeometry(0.8, 0.05, 0.2);
+          const wings = new THREE.Mesh(wingsGeo, mat);
+          group.add(wings);
+
+          // Position high up
+          const x = (Math.random() - 0.5) * this.terrainSize;
+          const z = (Math.random() - 0.5) * this.terrainSize;
+          const y = 20 + Math.random() * 10;
+          
+          group.position.set(x, y, z);
+          this.scene.add(group);
+          
+          this.birds.push({
+              mesh: group,
+              speed: 5 + Math.random() * 3,
+              angle: Math.random() * Math.PI * 2,
+              centerY: y,
+              radius: 20 + Math.random() * 20,
+              centerX: x, // Orbit center
+              centerZ: z
+          });
+      }
   }
 
   update(deltaTime) {
-    // Animate water or particles if needed
+    const time = this.game.clock.getElapsedTime();
+    
+    // Fish AI
+    this.fish.forEach(f => {
+        // Move forward
+        f.mesh.position.add(f.direction.clone().multiplyScalar(f.speed * deltaTime));
+        f.mesh.rotation.y = Math.atan2(-f.direction.z, f.direction.x);
+
+        // Turn randomly or near bounds
+        f.changeTime -= deltaTime;
+        const dist = Math.sqrt(f.mesh.position.x**2 + f.mesh.position.z**2);
+        
+        if (f.changeTime <= 0 || dist > 40 || this.getTerrainHeightAt(f.mesh.position.x, f.mesh.position.z) > -1) {
+            f.changeTime = 2 + Math.random() * 3;
+            // Pick new random direction
+            f.direction.set(Math.random()-0.5, 0, Math.random()-0.5).normalize();
+            // If out of bounds, point to center
+            if (dist > 40) {
+                f.direction.subVectors(new THREE.Vector3(0,0,0), f.mesh.position).normalize();
+            }
+        }
+        
+        // Wobble tail (visual only, simple rotation of whole fish slightly)
+        f.mesh.rotation.y += Math.sin(time * 10) * 0.1;
+    });
+
+    // Bird AI
+    this.birds.forEach(b => {
+        b.angle += (b.speed / b.radius) * deltaTime;
+        b.mesh.position.x = b.centerX + Math.cos(b.angle) * b.radius;
+        b.mesh.position.z = b.centerZ + Math.sin(b.angle) * b.radius;
+        // Bob up and down
+        b.mesh.position.y = b.centerY + Math.sin(time + b.angle) * 2;
+        // Bank
+        b.mesh.rotation.y = -b.angle;
+        b.mesh.rotation.z = Math.sin(time * 5) * 0.2; // Flap bank
+    });
   }
 }
